@@ -34,6 +34,8 @@ std::vector<std::string> Parse()
 			v.push_back(match[0]);
 		}
 	}
+	file.close();
+	std::remove("code.txt");
 	return v;
 }
 
@@ -84,8 +86,11 @@ void downloadIMG(std::vector<std::string>& links)
 		temp = match[0];
 		temp.append(".png");
 
+		/*
 		std::cout << v << "   " << temp << std::endl;
 		Sleep(500);
+		*/
+
 		fopen_s(&img, temp.c_str(), "wb");
 		if (!img)
 		{
