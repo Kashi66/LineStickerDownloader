@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+/.vs
+/Debug
+/LineStickerDownloader/Debug
+/LineStickerDownloader/code.txt
+/LineStickerDownloader/link.txt
