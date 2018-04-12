@@ -12,6 +12,11 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
 	return size * nmemb;
 }
 
+static size_t DownloadCallback(void *ptr, size_t size, size_t nmemb, void* userdata)
+{
+	FILE* stream = (FILE*)userdata;
+	return fwrite((FILE*)ptr, size, nmemb, stream);
+}
 
 std::vector<std::string> Parse()
 {
@@ -69,12 +74,12 @@ void downloadIMG(std::vector<std::string>& links)
 	for (auto &v : links)
 	{
 		std::string temp;
+		const char* tmp = v.c_str();
 		CURL* curl;
 		FILE* img;
 		CURLcode res;
 		std::regex reg("([[:digit:]]{2,})");
 		std::smatch match;
-
 		std::regex_search(v, match, reg);
 		temp = match[0];
 		temp.append(".png");
@@ -87,14 +92,15 @@ void downloadIMG(std::vector<std::string>& links)
 			std::cout << "Nie mozna zapisac obrazka" << std::endl;
 			_exit(-1);
 		}
+		
 
 		curl = curl_easy_init();
 		if (curl)
 		{
-			curl_easy_setopt(curl, CURLOPT_URL, v);
+			curl_easy_setopt(curl, CURLOPT_URL, tmp);
 			curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36");
 			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, DownloadCallback);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, img);
 			res = curl_easy_perform(curl);
 		}
