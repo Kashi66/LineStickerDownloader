@@ -54,14 +54,53 @@ void downloadPage(const char* url)
 	if (curl) 
 	{
 		curl_easy_setopt(curl, CURLOPT_URL, url);
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36");
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 		res = curl_easy_perform(curl);
 		code << buffer;
-		curl_easy_cleanup(curl);
 	}
-
+	curl_easy_cleanup(curl);
 	code.close();
+}
+
+void downloadIMG(std::vector<std::string>& links)
+{
+	for (auto &v : links)
+	{
+		std::string temp;
+		CURL* curl;
+		FILE* img;
+		CURLcode res;
+		std::regex reg("([[:digit:]]{2,})");
+		std::smatch match;
+
+		std::regex_search(v, match, reg);
+		temp = match[0];
+		temp.append(".png");
+
+		std::cout << v << "   " << temp << std::endl;
+		Sleep(500);
+		fopen_s(&img, temp.c_str(), "wb");
+		if (!img)
+		{
+			std::cout << "Nie mozna zapisac obrazka" << std::endl;
+			_exit(-1);
+		}
+
+		curl = curl_easy_init();
+		if (curl)
+		{
+			curl_easy_setopt(curl, CURLOPT_URL, v);
+			curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36");
+			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, img);
+			res = curl_easy_perform(curl);
+		}
+		curl_easy_cleanup(curl);
+		fclose(img);
+	}
 }
 
 
@@ -71,12 +110,16 @@ int main(int argc, char * argv[])
 
 	downloadPage(url);
 	std::vector<std::string> links = Parse();
-	std::fstream f("link.txt", std::ios::out | std::ios::in | std::ios::trunc);
-	for (auto &v : links)
-	{
-		f << v << "\n";
-	}
-	f.close();
+	downloadIMG(links);
+
+
+
+
+
+
+
+	//std::fstream f("link.txt", std::ios::out | std::ios::in | std::ios::trunc);
+	//f.close();
 
 	return 0;
 }
