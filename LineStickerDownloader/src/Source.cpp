@@ -1,136 +1,109 @@
-#include <fstream>
-#include <regex>
-#include <iostream>
+#include <stdlib.h>  
+#include <string.h>  
+#include <tchar.h>
 #include <windows.h>
-#include <string>
-#include <vector>
-#include <curl/curl.h>
+#include "../src/Downloader.cpp"
 
+/*  Declare Windows procedure  */
+LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
+/*  Make the class name into a global variable  */
+TCHAR szClassName[] = _T("LineStickerDownloader");
+HWND TextBox, SendButton;
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
-	((std::string*)userp)->append((char*)contents, size * nmemb);
-	return size * nmemb;
-}
-
-static size_t DownloadCallback(void *ptr, size_t size, size_t nmemb, void* userdata)
+int WINAPI WinMain(HINSTANCE hThisInstance,
+	HINSTANCE hPrevInstance,
+	LPSTR lpszArgument,
+	int nCmdShow)
 {
-	FILE* stream = (FILE*)userdata;
-	return fwrite((FILE*)ptr, size, nmemb, stream);
-}
+	HWND hwnd;               /* This is the handle for our window */
+	MSG messages;            /* Here messages to the application are saved */
+	WNDCLASSEX wincl;        /* Data structure for the windowclass */
+							 /* The Window structure */
+	wincl.hInstance = hThisInstance;
+	wincl.lpszClassName = szClassName;
+	wincl.lpfnWndProc = WindowProcedure;      /* This function is called by windows */
+	wincl.style = CS_DBLCLKS;                 /* Catch double-clicks */
+	wincl.cbSize = sizeof(WNDCLASSEX);
+	/* Use default icon and mouse-pointer */
+	wincl.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wincl.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+	wincl.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wincl.lpszMenuName = NULL;                 /* No menu */
+	wincl.cbClsExtra = 0;                      /* No extra bytes after the window class */
+	wincl.cbWndExtra = 0;                      /* structure or the window instance */
+											   /* Use Windows's default colour as the background of the window */
+	wincl.hbrBackground = (HBRUSH)COLOR_DESKTOP;
 
-std::vector<std::string> Parse()
-{
-	std::ifstream file;
-	file.open("code.txt", std::ios::in);
 
-	std::string buffer;
-	std::vector<std::string> v;
-	std::regex reg("(https?:\/\/.*sticker.png)");
-	std::smatch match;
-	while (std::getline(file, buffer))
+	/* Register the window class, and if it fails quit the program */
+	if (!RegisterClassEx(&wincl))
+		return 0;
+	/* The class is registered, let's create the program*/
+	hwnd = CreateWindowEx(
+		0,                   /* Extended possibilites for variation */
+		szClassName,         /* Classname */
+		_T("LineStickerDownloader"),       /* Title Text */
+		WS_OVERLAPPEDWINDOW, /* default window */
+		CW_USEDEFAULT,       /* Windows decides the position */
+		CW_USEDEFAULT,       /* where the window ends up on the screen */
+		440,                 /* The programs width */
+		120,                 /* and height in pixels */
+		HWND_DESKTOP,        /* The window is a child-window to desktop */
+		NULL,                /* No menu */
+		hThisInstance,       /* Program Instance handler */
+		NULL                 /* No Window Creation data */
+	);
+
+
+	/* Make the window visible on the screen */
+	ShowWindow(hwnd, nCmdShow);
+	/* Run the message loop. It will run until GetMessage() returns 0 */
+	while (GetMessage(&messages, NULL, 0, 0))
 	{
-		if (std::regex_search(buffer, match, reg))
+		/* Translate virtual-key messages into character messages */
+		TranslateMessage(&messages);
+		/* Send message to WindowProcedure */
+		DispatchMessage(&messages);
+	}
+	/* The program return-value is 0 - The value that PostQuitMessage() gave */
+	return messages.wParam;
+}
+/*  This function is called by the Windows function DispatchMessage()  */
+LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)                  /* handle the messages */
+	{
+	case WM_CREATE:
+
+		TextBox = CreateWindow("EDIT",
+			"",
+			WS_BORDER | WS_CHILD | WS_VISIBLE,
+			10, 20, 400, 20,
+			hwnd, (HMENU)1, NULL, NULL);
+
+		SendButton = CreateWindow("BUTTON",
+			"Download",
+			WS_VISIBLE | WS_CHILD | WS_BORDER,
+			165, 45, 80, 25,
+			hwnd, (HMENU)2, NULL, NULL);
+
+		break;
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
 		{
-			v.push_back(match[0]);
+		case 2:
+			DWORD len = GetWindowTextLength(TextBox) + 1;
+			LPSTR link = (LPSTR)GlobalAlloc(GPTR, len);
+			GetWindowText(TextBox, link, len);
+			Download(link);
+			break;
 		}
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);       /* send a WM_QUIT to the message queue */
+		break;
+	default:                      /* for messages that we don't deal with */
+		return DefWindowProc(hwnd, message, wParam, lParam);
 	}
-	file.close();
-	std::remove("code.txt");
-	return v;
-}
-
-
-void downloadPage(const char* url)
-{
-	CURL* curl;
-	CURLcode res;
-	std::fstream code;
-	std::string buffer;
-
-	curl = curl_easy_init();
-	code.open("code.txt", std::ios::out | std::ios::in | std::ios::trunc);
-
-	if (!code.is_open())
-	{
-		std::cout << "Nie mozna otworzyc pliku" << std::endl;
-
-		Sleep(2000);
-		_exit(-1);
-	}
-
-	if (curl) 
-	{
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36");
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-		res = curl_easy_perform(curl);
-		code << buffer;
-	}
-	curl_easy_cleanup(curl);
-	code.close();
-}
-
-void downloadIMG(std::vector<std::string>& links)
-{
-	for (auto &v : links)
-	{
-		std::string temp;
-		const char* tmp = v.c_str();
-		CURL* curl;
-		FILE* img;
-		CURLcode res;
-		std::regex reg("([[:digit:]]{2,})");
-		std::smatch match;
-		std::regex_search(v, match, reg);
-		temp = match[0];
-		temp.append(".png");
-
-		/*
-		std::cout << v << "   " << temp << std::endl;
-		Sleep(500);
-		*/
-
-		fopen_s(&img, temp.c_str(), "wb");
-		if (!img)
-		{
-			std::cout << "Nie mozna zapisac obrazka" << std::endl;
-			_exit(-1);
-		}
-		
-
-		curl = curl_easy_init();
-		if (curl)
-		{
-			curl_easy_setopt(curl, CURLOPT_URL, tmp);
-			curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36");
-			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, DownloadCallback);
-			curl_easy_setopt(curl, CURLOPT_WRITEDATA, img);
-			res = curl_easy_perform(curl);
-		}
-		curl_easy_cleanup(curl);
-		fclose(img);
-	}
-}
-
-
-int main(int argc, char * argv[])
-{
-	const char* url = argv[1];
-
-	downloadPage(url);
-	std::vector<std::string> links = Parse();
-	downloadIMG(links);
-
-
-
-
-
-
-
-	//std::fstream f("link.txt", std::ios::out | std::ios::in | std::ios::trunc);
-	//f.close();
-
 	return 0;
 }
